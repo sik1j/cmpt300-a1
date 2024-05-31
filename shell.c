@@ -7,6 +7,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/param.h>
+
 #define COMMAND_LENGTH 1024
 #define NUM_TOKENS (COMMAND_LENGTH / 2 + 1)
 
@@ -104,7 +106,16 @@ int main(int argc, char *argv[]) {
     // Get command
     // Use write because we need to use read() to work with
     // signals, and read() is incompatible with printf().
-    write(STDOUT_FILENO, "$ ", strlen("$ "));
+    char cwd[MAXPATHLEN];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        size_t size = strlen(cwd);
+        cwd[size] = '$';
+        cwd[size+1] = ' ';
+        cwd[size+2] = '\0';
+        write(STDOUT_FILENO, cwd, strlen(cwd));
+    } else {
+        write(STDOUT_FILENO, "$ ", strlen("$ "));
+    }
     _Bool in_background = false;
     read_command(input_buffer, tokens, &in_background);
 
