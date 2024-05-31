@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
     // Get command
     // Use write because we need to use read() to work with
     // signals, and read() is incompatible with printf().
-    char cwd[MAXPATHLEN];
+    char cwd[MAXPATHLEN+3]; // path size + 3 extra chars ($, <SPACE>, \0)
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         size_t size = strlen(cwd);
         cwd[size] = '$';
@@ -116,6 +116,7 @@ int main(int argc, char *argv[]) {
     } else {
         write(STDOUT_FILENO, "$ ", strlen("$ "));
     }
+
     _Bool in_background = false;
     read_command(input_buffer, tokens, &in_background);
 
