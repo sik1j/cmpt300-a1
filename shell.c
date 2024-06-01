@@ -196,6 +196,7 @@ int main(int argc, char *argv[]) {
     }
 
 
+    bool internalCommandCalled = true;
     /*
      * CHECK WRITE HAS SAME STRING FOR BOTH buf AND nbyte
      *
@@ -203,6 +204,7 @@ int main(int argc, char *argv[]) {
     enum CommandType isInternal = isInternalCommand(tokens);
     switch (isInternal) {
         case NOT_INTERNAL:
+            internalCommandCalled = false;
             break;
         case EXIT:
             return 0;
@@ -250,6 +252,10 @@ int main(int argc, char *argv[]) {
         case HELP_ERROR:
             write(STDOUT_FILENO, "too many arguments to 'help' call, expected 0,1 arguments\n", strlen("too many arguments to 'help' call, expected 0,1 arguments\n"));
             break;
+    }
+
+    if (internalCommandCalled) {
+        continue;
     }
 
     if (in_background) {
