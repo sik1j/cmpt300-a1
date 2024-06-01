@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <sys/param.h>
 
@@ -140,6 +141,26 @@ enum CommandType isInternalCommand(char *tokens[]) {
     }
 
     return NOT_INTERNAL;
+};
+
+void childProcessHandler(char *tokens[]) {
+//    MAKE SURE TO HANDLE ERROR
+    int out = execvp(tokens[0], tokens);
+    if (out == -1) {
+        write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
+    }
+}
+
+void parentProcessHandler(pid_t childId, _Bool in_background) {
+    int status;
+    if (!in_background) {
+//    NOT SURE IF IT SHOULD BE `0`. HOW DOES THIS ARGUMENT WORK??
+        waitpid(childId, &status, 0);
+    }
+}
+
+void forkFailHandler() {
+    write(STDOUT_FILENO, "Failed to fork a child", strlen("Failed to fork a child"));
 }
 
 /**
@@ -243,6 +264,18 @@ int main(int argc, char *argv[]) {
      *    child to finish. Otherwise, parent loops back to
      *    read_command() again immediately.
      */
+
+#define isParentProcess(pid) ((pid) > 0)
+#define isChildProcess(pid) ((pid) == 0)
+    pid_t pid = fork();
+    if (isChildProcess(pid)) {
+        childProcessHandler(tokens);
+    } else if (isParentProcess(pid)) {
+        parentProcessHandler(pid, in_background);
+    } else {
+        forkFailHandler();
+    }
+
   }
   return 0;
 }
