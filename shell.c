@@ -9,6 +9,8 @@
 
 #include <sys/param.h>
 
+#include <errno.h>
+
 #define COMMAND_LENGTH 1024
 #define NUM_TOKENS (COMMAND_LENGTH / 2 + 1)
 
@@ -95,6 +97,51 @@ void read_command(char *buff, char *tokens[], _Bool *in_background) {
   }
 }
 
+enum CommandType {
+    NOT_INTERNAL,
+    EXIT,
+    EXIT_ERROR,
+    PWD,
+    PWD_ERROR,
+    CD,
+    CD_ERROR,
+    HELP,
+    HELP_ERROR,
+};
+
+enum CommandType isInternalCommand(char *tokens[]) {
+    if (strcmp(tokens[0], "exit") == 0) {
+        if (tokens[1] == NULL) {
+            return EXIT;
+        } else {
+            return EXIT_ERROR;
+        }
+    }
+    if (strcmp(tokens[0], "pwd") == 0) {
+        if (tokens[1] == NULL) {
+            return PWD;
+        } else {
+            return PWD_ERROR;
+        }
+    }
+    if (strcmp(tokens[0], "cd") == 0) {
+        if (tokens[1] == NULL || tokens[2] == NULL) {
+            return CD;
+        } else {
+            return CD_ERROR;
+        }
+    }
+    if (strcmp(tokens[0], "help") == 0) {
+        if (tokens[1] == NULL || tokens[2] == NULL) {
+            return HELP;
+        } else {
+            return HELP_ERROR;
+        }
+    }
+
+    return NOT_INTERNAL;
+}
+
 /**
  * Main and Execute Commands
  */
@@ -109,10 +156,10 @@ int main(int argc, char *argv[]) {
     char cwd[MAXPATHLEN+3]; // path size + 3 extra chars ($, <SPACE>, \0)
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         size_t size = strlen(cwd);
-        cwd[size] = '$';
-        cwd[size+1] = ' ';
-        cwd[size+2] = '\0';
-        write(STDOUT_FILENO, cwd, strlen(cwd));
+        char termLine[size + 3];
+        strcpy(termLine, cwd);
+        strcat(termLine, "$ ");
+        write(STDOUT_FILENO, termLine, strlen(termLine));
     } else {
         write(STDOUT_FILENO, "$ ", strlen("$ "));
     }
@@ -126,6 +173,64 @@ int main(int argc, char *argv[]) {
       write(STDOUT_FILENO, tokens[i], strlen(tokens[i]));
       write(STDOUT_FILENO, "\n", strlen("\n"));
     }
+
+
+    /*
+     * CHECK WRITE HAS SAME STRING FOR BOTH buf AND nbyte
+     *
+     * */
+    enum CommandType isInternal = isInternalCommand(tokens);
+    switch (isInternal) {
+        case NOT_INTERNAL:
+            break;
+        case EXIT:
+            return 0;
+        case EXIT_ERROR:
+            write(STDOUT_FILENO, "too many arguments to 'exit' call, expected 0 arguments\n", strlen("too many arguments to 'exit' call, expected 0 arguments\n"));
+            break;
+        case PWD:
+            write(STDOUT_FILENO, cwd, strlen(cwd));
+            write(STDOUT_FILENO, "\n", strlen("\n"));
+            break;
+        case PWD_ERROR:
+            write(STDOUT_FILENO, "too many arguments to 'pwd' call, expected 0 arguments\n", strlen("too many arguments to 'pwd' call, expected 0 arguments\n"));
+            break;
+        case CD:
+            if (chdir(tokens[1]) == -1) {
+                write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
+                write(STDOUT_FILENO, "\n", strlen("\n"));
+            }
+            break;
+        case CD_ERROR:
+            write(STDOUT_FILENO, "too many arguments to 'cd' call, expected 0 or 1 arguments\n", strlen("too many arguments to 'cd' call, expected 0 or 1 arguments\n"));
+            break;
+        case HELP:
+            if (tokens[1] == NULL) {
+                write(STDOUT_FILENO, "'cd' is a builtin command for changing the current working directory.\n", strlen("'cd' is a builtin command for changing the current working directory.\n"));
+                write(STDOUT_FILENO, "'exit' is a builtin command that closes the shell.\n", strlen("'exit' is a builtin command that closes the shell.\n"));
+                write(STDOUT_FILENO, "'help' is a builtin command that provides info on all supported commands.\n", strlen("'help' is a builtin command that provides info on all supported commands.\n"));
+                write(STDOUT_FILENO, "'pwd' is a builtin command that displays the current working directory.\n", strlen("'pwd' is a builtin command that displays the current working directory.\n"));
+            } else {
+                if (strcmp(tokens[1], "cd") == 0) {
+                    write(STDOUT_FILENO, "'cd' is a builtin command for changing the current working directory.\n", strlen("'cd' is a builtin command for changing the current working directory.\n"));
+                } else if (strcmp(tokens[1], "exit") == 0) {
+                    write(STDOUT_FILENO, "'exit' is a builtin command that closes the shell.\n", strlen("'exit' is a builtin command that closes the shell.\n"));
+                } else if (strcmp(tokens[1], "help") == 0) {
+                    write(STDOUT_FILENO, "'help' is a builtin command that provides info on all supported commands.\n", strlen("'help' is a builtin command that provides info on all supported commands.\n"));
+                } else if (strcmp(tokens[1], "pwd") == 0) {
+                    write(STDOUT_FILENO, "'pwd' is a builtin command that displays the current working directory.\n", strlen("'pwd' is a builtin command that displays the current working directory.\n"));
+                } else {
+                    write(STDOUT_FILENO, "'", strlen("'"));
+                    write(STDOUT_FILENO, tokens[1], strlen(tokens[1]));
+                    write(STDOUT_FILENO, "' is an external command or application\n", strlen("' is an external command or application\n"));
+                }
+            }
+            break;
+        case HELP_ERROR:
+            write(STDOUT_FILENO, "too many arguments to 'help' call, expected 0,1 arguments\n", strlen("too many arguments to 'help' call, expected 0,1 arguments\n"));
+            break;
+    }
+
     if (in_background) {
       write(STDOUT_FILENO, "Run in background.", strlen("Run in background."));
     }
