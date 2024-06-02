@@ -16,7 +16,7 @@
 #define isParentProcess(pid) ((pid) > 0)
 #define isChildProcess(pid) ((pid) == 0)
 
-#define outputStr(str) write(STDOUT_FILENO, (str), strlen((str)));
+#define outputStr(str) write(STDOUT_FILENO, (str), strlen((str)))
 
 /**
  * Command Input and Processing
@@ -144,7 +144,7 @@ enum CommandType isInternalCommand(char *tokens[]) {
     }
 
     return NOT_INTERNAL;
-};
+}
 
 /**
  * Main and Execute Commands
