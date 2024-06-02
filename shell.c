@@ -10,8 +10,6 @@
 
 #include <sys/param.h>
 
-#include <errno.h>
-
 #define COMMAND_LENGTH 1024
 #define NUM_TOKENS (COMMAND_LENGTH / 2 + 1)
 
@@ -159,19 +157,26 @@ int main(int argc, char *argv[]) {
     // Get command
     // Use write because we need to use read() to work with
     // signals, and read() is incompatible with printf().
-    char cwd[MAXPATHLEN+3]; // path size + 3 extra chars ($, <SPACE>, \0)
+
+   // =========== PROBLEM 2 MAIN START ===========
+    char cwd[MAXPATHLEN + 1];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
         size_t size = strlen(cwd);
-        char termLine[size + 3];
+        char termLine[size + 3]; // size of cwd, and 3 extra chars: '$', ' ', '\0'
         strcpy(termLine, cwd);
         strcat(termLine, "$ ");
         write(STDOUT_FILENO, termLine, strlen(termLine));
     } else {
         write(STDOUT_FILENO, "$ ", strlen("$ "));
     }
+    // =========== PROBLEM 2 MAIN PAUSE ===========
 
     _Bool in_background = false;
     read_command(input_buffer, tokens, &in_background);
+    if (tokens[0] == NULL) {
+        // no commands entered
+        continue;
+    }
 
     // DEBUG: Dump out arguments:
     for (int i = 0; tokens[i] != NULL; i++) {
@@ -181,6 +186,8 @@ int main(int argc, char *argv[]) {
     }
 
 
+
+    // =========== PROBLEM 2 MAIN RESUME ===========
     bool internalCommandCalled = true;
     /*
      * CHECK WRITE HAS SAME STRING FOR BOTH buf AND nbyte
@@ -194,54 +201,56 @@ int main(int argc, char *argv[]) {
         case EXIT:
             return 0;
         case EXIT_ERROR:
-            write(STDOUT_FILENO, "too many arguments to 'exit' call, expected 0 arguments\n", strlen("too many arguments to 'exit' call, expected 0 arguments\n"));
+            outputStr("too many arguments to 'exit' call, expected 0 arguments\n");
             break;
         case PWD:
-            write(STDOUT_FILENO, cwd, strlen(cwd));
-            write(STDOUT_FILENO, "\n", strlen("\n"));
+            outputStr(cwd);
+            outputStr("\n");
             break;
         case PWD_ERROR:
-            write(STDOUT_FILENO, "too many arguments to 'pwd' call, expected 0 arguments\n", strlen("too many arguments to 'pwd' call, expected 0 arguments\n"));
+            outputStr("too many arguments to 'pwd' call, expected 0 arguments\n");
             break;
         case CD:
             if (chdir(tokens[1]) == -1) {
-                write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
-                write(STDOUT_FILENO, "\n", strlen("\n"));
+                outputStr(strerror(errno));
+                outputStr("\n");
             }
             break;
         case CD_ERROR:
-            write(STDOUT_FILENO, "too many arguments to 'cd' call, expected 0 or 1 arguments\n", strlen("too many arguments to 'cd' call, expected 0 or 1 arguments\n"));
+            outputStr("too many arguments to 'cd' call, expected 0 or 1 arguments\n");
             break;
         case HELP:
             if (tokens[1] == NULL) {
-                write(STDOUT_FILENO, "'cd' is a builtin command for changing the current working directory.\n", strlen("'cd' is a builtin command for changing the current working directory.\n"));
-                write(STDOUT_FILENO, "'exit' is a builtin command that closes the shell.\n", strlen("'exit' is a builtin command that closes the shell.\n"));
-                write(STDOUT_FILENO, "'help' is a builtin command that provides info on all supported commands.\n", strlen("'help' is a builtin command that provides info on all supported commands.\n"));
-                write(STDOUT_FILENO, "'pwd' is a builtin command that displays the current working directory.\n", strlen("'pwd' is a builtin command that displays the current working directory.\n"));
+                outputStr("'cd' is a builtin command for changing the current working directory.\n");
+                outputStr("'exit' is a builtin command that closes the shell.\n");
+                outputStr("'help' is a builtin command that provides info on all supported commands.\n");
+                outputStr("'pwd' is a builtin command that displays the current working directory.\n");
             } else {
                 if (strcmp(tokens[1], "cd") == 0) {
-                    write(STDOUT_FILENO, "'cd' is a builtin command for changing the current working directory.\n", strlen("'cd' is a builtin command for changing the current working directory.\n"));
+                    outputStr("'cd' is a builtin command for changing the current working directory.\n");
                 } else if (strcmp(tokens[1], "exit") == 0) {
-                    write(STDOUT_FILENO, "'exit' is a builtin command that closes the shell.\n", strlen("'exit' is a builtin command that closes the shell.\n"));
+                    outputStr("'exit' is a builtin command that closes the shell.\n");
                 } else if (strcmp(tokens[1], "help") == 0) {
-                    write(STDOUT_FILENO, "'help' is a builtin command that provides info on all supported commands.\n", strlen("'help' is a builtin command that provides info on all supported commands.\n"));
+                    outputStr("'help' is a builtin command that provides info on all supported commands.\n");
                 } else if (strcmp(tokens[1], "pwd") == 0) {
-                    write(STDOUT_FILENO, "'pwd' is a builtin command that displays the current working directory.\n", strlen("'pwd' is a builtin command that displays the current working directory.\n"));
+                    outputStr("'pwd' is a builtin command that displays the current working directory.\n");
                 } else {
-                    write(STDOUT_FILENO, "'", strlen("'"));
-                    write(STDOUT_FILENO, tokens[1], strlen(tokens[1]));
-                    write(STDOUT_FILENO, "' is an external command or application\n", strlen("' is an external command or application\n"));
+                    outputStr("'");
+                    outputStr(tokens[1]);
+                    outputStr("' is an external command or application\n");
                 }
             }
             break;
         case HELP_ERROR:
-            write(STDOUT_FILENO, "too many arguments to 'help' call, expected 0,1 arguments\n", strlen("too many arguments to 'help' call, expected 0,1 arguments\n"));
+            outputStr("too many arguments to 'help' call, expected 0 or 1 arguments\n");
             break;
     }
 
     if (internalCommandCalled) {
         continue;
     }
+
+    // =========== PROBLEM 2 MAIN END ===========
 
     if (in_background) {
       write(STDOUT_FILENO, "Run in background.", strlen("Run in background."));
@@ -275,6 +284,10 @@ int main(int argc, char *argv[]) {
     } else {
         outputStr("Failed to fork a child");
     }
+
+    // Clean zombie processes
+      while (waitpid(-1, NULL, WNOHANG) > 0)
+          ; // do nothing
     // =========== PROBLEM 1 MAIN END ===========
   }
   return 0;
