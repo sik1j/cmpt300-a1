@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include "history.h"
 
 #include <sys/param.h>
 
@@ -108,6 +109,8 @@ enum CommandType {
     CD_ERROR,
     HELP,
     HELP_ERROR,
+    HISTORY,
+    HISTORY_ERROR,
 };
 
 enum CommandType isInternalCommand(char *tokens[]) {
@@ -137,6 +140,13 @@ enum CommandType isInternalCommand(char *tokens[]) {
             return HELP;
         } else {
             return HELP_ERROR;
+        }
+    }
+    if (strcmp(tokens[0], "history") == 0) {
+        if (tokens[1] == NULL || tokens[2] == NULL) {
+            return HISTORY;
+        } else {
+            return HISTORY_ERROR;
         }
     }
 
@@ -187,12 +197,15 @@ int main(int argc, char *argv[]) {
 
     _Bool in_background = false;
     read_command(input_buffer, tokens, &in_background);
+    // add command to history
+    add_to_history(input_buffer);
 
     // DEBUG: Dump out arguments:
     for (int i = 0; tokens[i] != NULL; i++) {
-      write(STDOUT_FILENO, "   Token: ", strlen("   Token: "));
-      write(STDOUT_FILENO, tokens[i], strlen(tokens[i]));
-      write(STDOUT_FILENO, "\n", strlen("\n"));
+        write(STDOUT_FILENO, "time to add to history\n", strlen("time to add to history\n"));
+        write(STDOUT_FILENO, "   Token: ", strlen("   Token: "));
+        write(STDOUT_FILENO, tokens[i], strlen(tokens[i]));
+        write(STDOUT_FILENO, "\n", strlen("\n"));
     }
 
 
@@ -251,6 +264,12 @@ int main(int argc, char *argv[]) {
             break;
         case HELP_ERROR:
             write(STDOUT_FILENO, "too many arguments to 'help' call, expected 0,1 arguments\n", strlen("too many arguments to 'help' call, expected 0,1 arguments\n"));
+            break;
+        case HISTORY:
+            print_history();
+            break;
+        case HISTORY_ERROR:
+            write(STDOUT_FILENO, "too many arguments to 'history' call, expected 0 arguments\n", strlen("too many arguments to 'history' call, expected 0 arguments\n"));
             break;
     }
 
