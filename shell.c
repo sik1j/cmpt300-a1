@@ -272,6 +272,7 @@ int main(int argc, char *argv[]) {
             outputStr(strerror(errno));
             outputStr("\n");
         }
+        return 0;
     } else if (isParentProcess(pid)) {
         int status;
         if (!in_background) {
