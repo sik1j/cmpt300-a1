@@ -104,7 +104,12 @@ void read_command(char *buff, char *tokens[], _Bool *in_background) {
       run_previous_command(buff); // run the previous command
       // Re-tokenize the command from previous history
       tokenize_command(buff, tokens);
-    } else {
+    }
+    else if (strcmp(tokens[0], "!-") == 0) {
+        clear_history();
+        return;
+    }
+     else {
       // check if string right after ! is a number
       for (int i = 1; i < strlen(tokens[0]); i++) {
         if (!isdigit(tokens[0][i])) {
