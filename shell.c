@@ -97,19 +97,26 @@ void read_command(char *buff, char *tokens[], _Bool *in_background) {
     return;
   }
 
-    // If the command is a history command (starts with '!'), run the command from history
+  // If the command is a history command (starts with '!'), run the command from history
   if (tokens[0][0] == '!') {
-    // check if string right after ! is a number
-    for (int i = 1; i < strlen(tokens[0]); i++) {
-      if (!isdigit(tokens[0][i])) {
-        outputStr("Invalid history command.\n");
-        return;
+    // If the command is exactly "!!", run the previous command
+    if (strcmp(tokens[0], "!!") == 0) {
+      run_previous_command(buff); // run the previous command
+      // Re-tokenize the command from previous history
+      tokenize_command(buff, tokens);
+    } else {
+      // check if string right after ! is a number
+      for (int i = 1; i < strlen(tokens[0]); i++) {
+        if (!isdigit(tokens[0][i])) {
+          outputStr("Invalid history command.\n");
+          return;
+        }
       }
+      int id = atoi(&tokens[0][1]); // convert the string after '!' to an integer
+      run_command_from_history(id, buff); // run the command from history
+      // Re-tokenize the command from history
+      tokenize_command(buff, tokens);
     }
-    int id = atoi(&tokens[0][1]); // convert the string after '!' to an integer
-    run_command_from_history(id, buff); // run the command from history
-    // Re-tokenize the command from history
-    tokenize_command(buff, tokens);
   }
 
   // Extract if running in background:

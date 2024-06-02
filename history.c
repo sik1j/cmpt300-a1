@@ -51,6 +51,11 @@ void run_command_from_history(int id, char* input_buffer) {
     }
 }
 
+// run previous command
+void run_previous_command(char* input_buffer) {
+    run_command_from_history(total_commands - 1, input_buffer);
+}
+
 // print last 10 commands to the screen
 void print_history() {
     char buffer[COMMAND_LENGTH + 20]; // Extra space for command number and newline
