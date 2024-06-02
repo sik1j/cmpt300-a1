@@ -10,6 +10,7 @@
 #include "history.h"
 
 #include <sys/param.h>
+#include <sys/wait.h>
 
 #define COMMAND_LENGTH 1024
 #define NUM_TOKENS (COMMAND_LENGTH / 2 + 1)
@@ -187,6 +188,9 @@ int main(int argc, char *argv[]) {
         // no commands entered
         continue;
     }
+    else {
+        add_to_history(input_buffer);
+    }
 
     // =========== PROBLEM 2 MAIN RESUME ===========
     bool internalCommandCalled = true;
@@ -244,6 +248,12 @@ int main(int argc, char *argv[]) {
             break;
         case HELP_ERROR:
             outputStr("too many arguments to 'help' call, expected 0 or 1 arguments\n");
+            break;
+        case HISTORY:
+            print_history();
+            break;
+        case HISTORY_ERROR:
+            outputStr("too many arguments to 'history' call, expected 0 arguments\n");
             break;
     }
 

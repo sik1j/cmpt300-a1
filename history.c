@@ -6,6 +6,7 @@
 
 #define HISTORY_DEPTH 10
 #define COMMAND_LENGTH 1024
+#define outputStr(str) write(STDOUT_FILENO, (str), strlen((str)))
 
 // command history and each command has its own id
 char history[HISTORY_DEPTH][COMMAND_LENGTH];
@@ -22,7 +23,7 @@ void add_to_history(char* buffer) {
 // retrieve command
 char* get_command_from_history(int id) {
     if (id < 0 || id >= total_commands) {
-        printf("No such command in history.\n");
+        outputStr("Command not in history\n");
         return NULL;
     }
 
@@ -35,7 +36,7 @@ void print_history() {
     char buffer[COMMAND_LENGTH + 20]; // Extra space for command number and newline
     int start = total_commands > HISTORY_DEPTH ? total_commands - HISTORY_DEPTH : 0;
 
-    for (int i = start; i < total_commands; i++) {
+    for (int i = total_commands - 1; i >= start; i--) {
         int index = i % HISTORY_DEPTH;
         int length = snprintf(buffer, sizeof(buffer), "%d:\t%s\n", i, history[index]);
         write(STDOUT_FILENO, buffer, length);
