@@ -15,6 +15,11 @@
 #define COMMAND_LENGTH 1024
 #define NUM_TOKENS (COMMAND_LENGTH / 2 + 1)
 
+#define isParentProcess(pid) ((pid) > 0)
+#define isChildProcess(pid) ((pid) == 0)
+
+#define outputStr(str) write(STDOUT_FILENO, (str), strlen((str)));
+
 /**
  * Command Input and Processing
  */
@@ -143,26 +148,6 @@ enum CommandType isInternalCommand(char *tokens[]) {
     return NOT_INTERNAL;
 };
 
-void childProcessHandler(char *tokens[]) {
-//    MAKE SURE TO HANDLE ERROR
-    int out = execvp(tokens[0], tokens);
-    if (out == -1) {
-        write(STDOUT_FILENO, strerror(errno), strlen(strerror(errno)));
-    }
-}
-
-void parentProcessHandler(pid_t childId, _Bool in_background) {
-    int status;
-    if (!in_background) {
-//    NOT SURE IF IT SHOULD BE `0`. HOW DOES THIS ARGUMENT WORK??
-        waitpid(childId, &status, 0);
-    }
-}
-
-void forkFailHandler() {
-    write(STDOUT_FILENO, "Failed to fork a child", strlen("Failed to fork a child"));
-}
-
 /**
  * Main and Execute Commands
  */
@@ -271,17 +256,26 @@ int main(int argc, char *argv[]) {
      *    read_command() again immediately.
      */
 
-#define isParentProcess(pid) ((pid) > 0)
-#define isChildProcess(pid) ((pid) == 0)
+    // =========== PROBLEM 1 MAIN START ===========
     pid_t pid = fork();
     if (isChildProcess(pid)) {
-        childProcessHandler(tokens);
+        if (execvp(tokens[0], tokens) == -1) {
+            outputStr(strerror(errno));
+            outputStr("\n");
+        }
     } else if (isParentProcess(pid)) {
-        parentProcessHandler(pid, in_background);
+        int status;
+        if (!in_background) {
+            // What in the hell does STATUS mean?
+            if (waitpid(pid, &status, 0) == -1) {
+                outputStr(strerror(errno));
+                outputStr("\n");
+            }
+        }
     } else {
-        forkFailHandler();
+        outputStr("Failed to fork a child");
     }
-
+    // =========== PROBLEM 1 MAIN END ===========
   }
   return 0;
 }
