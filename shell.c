@@ -178,15 +178,6 @@ int main(int argc, char *argv[]) {
         continue;
     }
 
-    // DEBUG: Dump out arguments:
-    for (int i = 0; tokens[i] != NULL; i++) {
-      write(STDOUT_FILENO, "   Token: ", strlen("   Token: "));
-      write(STDOUT_FILENO, tokens[i], strlen(tokens[i]));
-      write(STDOUT_FILENO, "\n", strlen("\n"));
-    }
-
-
-
     // =========== PROBLEM 2 MAIN RESUME ===========
     bool internalCommandCalled = true;
     /*
@@ -251,10 +242,6 @@ int main(int argc, char *argv[]) {
     }
 
     // =========== PROBLEM 2 MAIN END ===========
-
-    if (in_background) {
-      write(STDOUT_FILENO, "Run in background.", strlen("Run in background."));
-    }
 
     /**
      * Steps For Basic Shell:
