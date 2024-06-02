@@ -103,6 +103,39 @@ void read_command(char *buff, char *tokens[], _Bool *in_background) {
   }
 }
 
+// check if command is a valid external command
+int is_external_command(const char *command) {
+    char *path_env = getenv("PATH");
+    if (path_env == NULL) {
+        return 0; // PATH environment variable not found
+    }
+
+    // Duplicate the PATH environment variable to avoid modifying the original
+    char *path = strdup(path_env);
+    if (path == NULL) {
+        perror("strdup");
+        return 0;
+    }
+
+    char *dir = strtok(path, ":");
+    while (dir != NULL) {
+        // Construct the full path to the command
+        char full_path[1024];
+        snprintf(full_path, sizeof(full_path), "%s/%s", dir, command);
+
+        // Check if the file exists and is executable
+        if (access(full_path, X_OK) == 0) {
+            free(path);
+            return 1; // Command found and is executable
+        }
+
+        dir = strtok(NULL, ":");
+    }
+
+    free(path);
+    return 0; // Command not found
+}
+
 enum CommandType {
     NOT_INTERNAL,
     EXIT,
@@ -189,7 +222,10 @@ int main(int argc, char *argv[]) {
         continue;
     }
     else {
-        add_to_history(input_buffer);
+        if (isInternalCommand(tokens) || is_external_command(tokens[0])) {
+            add_to_history(tokens);
+        }
+        
     }
 
     // =========== PROBLEM 2 MAIN RESUME ===========

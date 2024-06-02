@@ -13,8 +13,17 @@ char history[HISTORY_DEPTH][COMMAND_LENGTH];
 int total_commands = 0;
 
 // add command to history
-void add_to_history(char* buffer) {
+void add_to_history(char** tokens) {
     int index = total_commands % HISTORY_DEPTH;
+    char buffer[COMMAND_LENGTH] = ""; // Initialize buffer to empty string
+
+    // Concatenate all tokens into buffer
+    for (int i = 0; tokens[i] != NULL; i++) {
+        strncat(buffer, tokens[i], COMMAND_LENGTH - strlen(buffer) - 1);
+        strncat(buffer, " ", COMMAND_LENGTH - strlen(buffer) - 1); // Add space between tokens
+    }
+
+    // Copy buffer to history
     strncpy(history[index], buffer, COMMAND_LENGTH);
     history[index][COMMAND_LENGTH - 1] = '\0'; // Ensure null-termination
     total_commands++;
