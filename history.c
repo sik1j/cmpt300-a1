@@ -32,12 +32,23 @@ void add_to_history(char** tokens) {
 // retrieve command
 char* get_command_from_history(int id) {
     if (id < 0 || id >= total_commands) {
-        outputStr("Command not in history\n");
         return NULL;
     }
 
     int index = id % HISTORY_DEPTH;
     return history[index];
+}
+
+// run command from history with !n to run command number n
+void run_command_from_history(int id, char* input_buffer) {
+    char* command = get_command_from_history(id);
+    if (command != NULL) {
+        outputStr(command);
+        outputStr("\n");
+        strncpy(input_buffer, command, COMMAND_LENGTH);
+    } else {
+        outputStr("Command not found in history\n");
+    }
 }
 
 // print last 10 commands to the screen

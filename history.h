@@ -4,6 +4,7 @@
 
 void add_to_history(char **tokens);
 char *get_command_from_history(int id);
+void run_command_from_history(int id, char* input_buffer);
 void print_history();
 
 #endif

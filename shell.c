@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <ctype.h>
 #include "history.h"
 
 #include <sys/param.h>
@@ -94,6 +95,21 @@ void read_command(char *buff, char *tokens[], _Bool *in_background) {
   int token_count = tokenize_command(buff, tokens);
   if (token_count == 0) {
     return;
+  }
+
+    // If the command is a history command (starts with '!'), run the command from history
+  if (tokens[0][0] == '!') {
+    // check if string right after ! is a number
+    for (int i = 1; i < strlen(tokens[0]); i++) {
+      if (!isdigit(tokens[0][i])) {
+        outputStr("Invalid history command.\n");
+        return;
+      }
+    }
+    int id = atoi(&tokens[0][1]); // convert the string after '!' to an integer
+    run_command_from_history(id, buff); // run the command from history
+    // Re-tokenize the command from history
+    tokenize_command(buff, tokens);
   }
 
   // Extract if running in background:
