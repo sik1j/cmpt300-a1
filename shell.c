@@ -194,6 +194,12 @@ enum CommandType isInternalCommand(char *tokens[]) {
         }
     }
 
+    // if any options are passed to the history commands show an error
+    if ((strcmp(tokens[0], "!!") == 0 || strcmp(tokens[0], "!-") == 0 || tokens[0][0] == '!') && tokens[1] != NULL) {
+        return HISTORY_ERROR;
+    }
+
+
     if (tokens[0][0] == '!') {
         if (strcmp(tokens[0], "!!") == 0) {
             if (get_total_commands() == 0) {
@@ -334,7 +340,9 @@ int main(int argc, char *argv[]) {
                 print_history();
                 break;
             case HISTORY_ERROR:
-                outputStr("too many arguments to 'history' call, expected 0 arguments\n");
+                outputStr("too many arguments to ");
+                outputStr(tokens[0]);
+                outputStr(" call, expected 0 arguments\n");
                 break;
             case HISTORY_CLEAR:
                 clear_history();
