@@ -72,3 +72,8 @@ void print_history() {
         write(STDOUT_FILENO, buffer, length);
     }
 }
+
+// get total number of commands
+int get_total_commands() {
+    return total_commands;
+}

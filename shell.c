@@ -97,33 +97,6 @@ void read_command(char *buff, char *tokens[], _Bool *in_background) {
     return;
   }
 
-  // If the command is a history command (starts with '!'), run the command from history
-  if (tokens[0][0] == '!') {
-    // If the command is exactly "!!", run the previous command
-    if (strcmp(tokens[0], "!!") == 0) {
-      run_previous_command(buff); // run the previous command
-      // Re-tokenize the command from previous history
-      tokenize_command(buff, tokens);
-    }
-    else if (strcmp(tokens[0], "!-") == 0) {
-        clear_history();
-        return;
-    }
-     else {
-      // check if string right after ! is a number
-      for (int i = 1; i < strlen(tokens[0]); i++) {
-        if (!isdigit(tokens[0][i])) {
-          outputStr("Invalid history command.\n");
-          return;
-        }
-      }
-      int id = atoi(&tokens[0][1]); // convert the string after '!' to an integer
-      run_command_from_history(id, buff); // run the command from history
-      // Re-tokenize the command from history
-      tokenize_command(buff, tokens);
-    }
-  }
-
   // Extract if running in background:
   if (token_count > 0 && strcmp(tokens[token_count - 1], "&") == 0) {
     *in_background = true;
@@ -176,7 +149,12 @@ enum CommandType {
     HELP_ERROR,
     HISTORY,
     HISTORY_ERROR,
+    HISTORY_RUN_PREVIOUS,  // !!
+    HISTORY_CLEAR,         // !-
+    HISTORY_RUN_SPECIFIC,  // !<number>
+    HISTORY_INVALID,
 };
+
 
 enum CommandType isInternalCommand(char *tokens[]) {
     if (strcmp(tokens[0], "exit") == 0) {
@@ -208,159 +186,191 @@ enum CommandType isInternalCommand(char *tokens[]) {
         }
     }
     if (strcmp(tokens[0], "history") == 0) {
-        if (tokens[1] == NULL || tokens[2] == NULL) {
+        if (tokens[1] == NULL) {
             return HISTORY;
         } else {
             return HISTORY_ERROR;
         }
     }
 
+    if (tokens[0][0] == '!') {
+        if (strcmp(tokens[0], "!!") == 0) {
+            return HISTORY_RUN_PREVIOUS;
+        } else if (strcmp(tokens[0], "!-") == 0) {
+            return HISTORY_CLEAR;
+        } else {
+            for (int i = 1; i < strlen(tokens[0]); i++) {
+                if (!isdigit(tokens[0][i])) {
+                    return HISTORY_INVALID;
+                }
+            }
+            int id = atoi(&tokens[0][1]);
+            if (id < 0 || id >= get_total_commands()) {
+                return HISTORY_INVALID;
+            }
+            return HISTORY_RUN_SPECIFIC;
+        }
+    }
+
     return NOT_INTERNAL;
 }
+
 
 /**
  * Main and Execute Commands
  */
 int main(int argc, char *argv[]) {
-  char input_buffer[COMMAND_LENGTH];
-  char *tokens[NUM_TOKENS];
-  while (true) {
+    char input_buffer[COMMAND_LENGTH];
+    char *tokens[NUM_TOKENS];
 
-    // Get command
-    // Use write because we need to use read() to work with
-    // signals, and read() is incompatible with printf().
-
-   // =========== PROBLEM 2 MAIN START ===========
-    char cwd[MAXPATHLEN + 1];
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
-        size_t size = strlen(cwd);
-        char termLine[size + 3]; // size of cwd, and 3 extra chars: '$', ' ', '\0'
-        strcpy(termLine, cwd);
-        strcat(termLine, "$ ");
-        write(STDOUT_FILENO, termLine, strlen(termLine));
-    } else {
-        write(STDOUT_FILENO, "$ ", strlen("$ "));
-    }
-    // =========== PROBLEM 2 MAIN PAUSE ===========
-
-    _Bool in_background = false;
-    read_command(input_buffer, tokens, &in_background);
-    if (tokens[0] == NULL) {
-        // no commands entered
-        continue;
-    }
-    else {
-        if (isInternalCommand(tokens) || is_external_command(tokens[0])) {
-            add_to_history(tokens);
+    while (true) {
+        // Display prompt and read command
+        char cwd[MAXPATHLEN + 1];
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+            size_t size = strlen(cwd);
+            char termLine[size + 3]; // size of cwd, and 3 extra chars: '$', ' ', '\0'
+            strcpy(termLine, cwd);
+            strcat(termLine, "$ ");
+            write(STDOUT_FILENO, termLine, strlen(termLine));
+        } else {
+            write(STDOUT_FILENO, "$ ", strlen("$ "));
         }
-        
-    }
 
-    // =========== PROBLEM 2 MAIN RESUME ===========
-    bool internalCommandCalled = true;
-    /*
-     * CHECK WRITE HAS SAME STRING FOR BOTH buf AND nbyte
-     *
-     * */
-    enum CommandType isInternal = isInternalCommand(tokens);
-    switch (isInternal) {
-        case NOT_INTERNAL:
-            internalCommandCalled = false;
-            break;
-        case EXIT:
-            return 0;
-        case EXIT_ERROR:
-            outputStr("too many arguments to 'exit' call, expected 0 arguments\n");
-            break;
-        case PWD:
-            outputStr(cwd);
-            outputStr("\n");
-            break;
-        case PWD_ERROR:
-            outputStr("too many arguments to 'pwd' call, expected 0 arguments\n");
-            break;
-        case CD:
-            if (chdir(tokens[1]) == -1) {
-                outputStr(strerror(errno));
+        _Bool in_background = false;
+        read_command(input_buffer, tokens, &in_background);
+        if (tokens[0] == NULL) {
+            // no commands entered
+            continue;
+        }
+
+        // Handle history commands before adding to history
+        enum CommandType isInternal = isInternalCommand(tokens);
+        if (isInternal == HISTORY_RUN_PREVIOUS) {
+            run_previous_command(input_buffer);
+            tokenize_command(input_buffer, tokens);
+        } 
+        
+        if (isInternal == HISTORY_RUN_SPECIFIC) {
+            int id = atoi(&tokens[0][1]);
+            run_command_from_history(id, input_buffer);
+            tokenize_command(input_buffer, tokens);
+        }
+
+        if (isInternal == HISTORY_INVALID) {
+            outputStr("Could not find command in history\n");
+            continue;
+        }
+
+        // Now add the executed command to history       
+        if (isInternal != HISTORY_ERROR && (isInternalCommand(tokens) != NOT_INTERNAL || is_external_command(tokens[0]))) {
+                add_to_history(tokens);
+        }
+
+        bool internalCommandCalled = true;
+        isInternal = isInternalCommand(tokens);
+        switch (isInternal) {
+            case NOT_INTERNAL:
+                internalCommandCalled = false;
+                break;
+            case EXIT:
+                return 0;
+            case EXIT_ERROR:
+                outputStr("too many arguments to 'exit' call, expected 0 arguments\n");
+                break;
+            case PWD:
+                outputStr(cwd);
                 outputStr("\n");
-            }
-            break;
-        case CD_ERROR:
-            outputStr("too many arguments to 'cd' call, expected 0 or 1 arguments\n");
-            break;
-        case HELP:
-            if (tokens[1] == NULL) {
-                outputStr("'cd' is a builtin command for changing the current working directory.\n");
-                outputStr("'exit' is a builtin command that closes the shell.\n");
-                outputStr("'help' is a builtin command that provides info on all supported commands.\n");
-                outputStr("'pwd' is a builtin command that displays the current working directory.\n");
-            } else {
-                if (strcmp(tokens[1], "cd") == 0) {
+                break;
+            case PWD_ERROR:
+                outputStr("too many arguments to 'pwd' call, expected 0 arguments\n");
+                break;
+            case CD:
+                if (chdir(tokens[1]) == -1) {
+                    outputStr(strerror(errno));
+                    outputStr("\n");
+                }
+                break;
+            case CD_ERROR:
+                outputStr("too many arguments to 'cd' call, expected 0 or 1 arguments\n");
+                break;
+            case HELP:
+                if (tokens[1] == NULL) {
                     outputStr("'cd' is a builtin command for changing the current working directory.\n");
-                } else if (strcmp(tokens[1], "exit") == 0) {
                     outputStr("'exit' is a builtin command that closes the shell.\n");
-                } else if (strcmp(tokens[1], "help") == 0) {
                     outputStr("'help' is a builtin command that provides info on all supported commands.\n");
-                } else if (strcmp(tokens[1], "pwd") == 0) {
                     outputStr("'pwd' is a builtin command that displays the current working directory.\n");
                 } else {
-                    outputStr("'");
-                    outputStr(tokens[1]);
-                    outputStr("' is an external command or application\n");
+                    if (strcmp(tokens[1], "cd") == 0) {
+                        outputStr("'cd' is a builtin command for changing the current working directory.\n");
+                    } else if (strcmp(tokens[1], "exit") == 0) {
+                        outputStr("'exit' is a builtin command that closes the shell.\n");
+                    } else if (strcmp(tokens[1], "help") == 0) {
+                        outputStr("'help' is a builtin command that provides info on all supported commands.\n");
+                    } else if (strcmp(tokens[1], "pwd") == 0) {
+                        outputStr("'pwd' is a builtin command that displays the current working directory.\n");
+                    } else {
+                        outputStr("'");
+                        outputStr(tokens[1]);
+                        outputStr("' is an external command or application\n");
+                    }
                 }
-            }
-            break;
-        case HELP_ERROR:
-            outputStr("too many arguments to 'help' call, expected 0 or 1 arguments\n");
-            break;
-        case HISTORY:
-            print_history();
-            break;
-        case HISTORY_ERROR:
-            outputStr("too many arguments to 'history' call, expected 0 arguments\n");
-            break;
-    }
-
-    if (internalCommandCalled) {
-        continue;
-    }
-
-    // =========== PROBLEM 2 MAIN END ===========
-
-    /**
-     * Steps For Basic Shell:
-     * 1. Fork a child process
-     * 2. Child process invokes execvp() using results in token array.
-     * 3. If in_background is false, parent waits for
-     *    child to finish. Otherwise, parent loops back to
-     *    read_command() again immediately.
-     */
-
-    // =========== PROBLEM 1 MAIN START ===========
-    pid_t pid = fork();
-    if (isChildProcess(pid)) {
-        if (execvp(tokens[0], tokens) == -1) {
-            outputStr(strerror(errno));
-            outputStr("\n");
+                break;
+            case HELP_ERROR:
+                outputStr("too many arguments to 'help' call, expected 0 or 1 arguments\n");
+                break;
+            case HISTORY:
+                print_history();
+                break;
+            case HISTORY_ERROR:
+                outputStr("too many arguments to 'history' call, expected 0 arguments\n");
+                break;
+            case HISTORY_CLEAR:
+                clear_history();
+                break;
+            case HISTORY_RUN_PREVIOUS:
+                // This should not be reached
+                break;
+            case HISTORY_RUN_SPECIFIC:
+                // This should not be reached
+                break;
+            case HISTORY_INVALID:
+                // error msg output in history.c
+                break;
+            
         }
-        return 0;
-    } else if (isParentProcess(pid)) {
-        int status;
-        if (!in_background) {
-            // What in the hell does STATUS mean?
-            if (waitpid(pid, &status, 0) == -1) {
+
+        if (internalCommandCalled) {
+            continue;
+        }
+
+        if (in_background) {
+            write(STDOUT_FILENO, "Run in background.", strlen("Run in background."));
+        }
+
+        // Fork and execute the command
+        pid_t pid = fork();
+        if (isChildProcess(pid)) {
+            if (execvp(tokens[0], tokens) == -1) {
                 outputStr(strerror(errno));
                 outputStr("\n");
             }
+            return 0;
+        } else if (isParentProcess(pid)) {
+            int status;
+            if (!in_background) {
+                if (waitpid(pid, &status, 0) == -1) {
+                    outputStr(strerror(errno));
+                    outputStr("\n");
+                }
+            }
+        } else {
+            outputStr("Failed to fork a child");
         }
-    } else {
-        outputStr("Failed to fork a child");
-    }
 
-    // Clean zombie processes
-      while (waitpid(-1, NULL, WNOHANG) > 0)
-          ; // do nothing
-    // =========== PROBLEM 1 MAIN END ===========
-  }
-  return 0;
+        // Clean zombie processes
+        while (waitpid(-1, NULL, WNOHANG) > 0)
+            ; // do nothing
+    }
+    return 0;
 }
+

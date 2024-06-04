@@ -8,5 +8,6 @@ void run_command_from_history(int id, char* input_buffer);
 void run_previous_command(char* input_buffer);
 void clear_history();
 void print_history();
+int get_total_commands();
 
 #endif
