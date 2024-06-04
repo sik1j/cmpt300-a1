@@ -31,7 +31,8 @@ void add_to_history(char** tokens) {
 
 // retrieve command
 char* get_command_from_history(int id) {
-    if (id < 0 || id >= total_commands) {
+    int first_command_index = total_commands < HISTORY_DEPTH ? 0 : total_commands - HISTORY_DEPTH;
+    if (id < first_command_index || id >= total_commands) {
         return NULL;
     }
 
@@ -47,12 +48,17 @@ void run_command_from_history(int id, char* input_buffer) {
         outputStr("\n");
         strncpy(input_buffer, command, COMMAND_LENGTH);
     } else {
-        outputStr("Command not found in history\n");
+        outputStr("No commands in history, can not run previous command\n");
     }
 }
 
 // run previous command
 void run_previous_command(char* input_buffer) {
+    // if you try to run a previous command when there are none
+    if (total_commands == 0) {
+        return;
+
+    }
     run_command_from_history(total_commands - 1, input_buffer);
 }
 

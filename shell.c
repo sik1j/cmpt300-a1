@@ -150,6 +150,7 @@ enum CommandType {
     HISTORY,
     HISTORY_ERROR,
     HISTORY_RUN_PREVIOUS,  // !!
+    HISTORY_RUN_PREVIOUS_ERROR,
     HISTORY_CLEAR,         // !-
     HISTORY_RUN_SPECIFIC,  // !<number>
     HISTORY_INVALID,
@@ -195,9 +196,14 @@ enum CommandType isInternalCommand(char *tokens[]) {
 
     if (tokens[0][0] == '!') {
         if (strcmp(tokens[0], "!!") == 0) {
+            if (get_total_commands() == 0) {
+                return HISTORY_RUN_PREVIOUS_ERROR;
+            }
             return HISTORY_RUN_PREVIOUS;
         } else if (strcmp(tokens[0], "!-") == 0) {
             return HISTORY_CLEAR;
+        } else if (strcmp(tokens[0], "!") == 0) {
+            return HISTORY_INVALID;
         } else {
             for (int i = 1; i < strlen(tokens[0]); i++) {
                 if (!isdigit(tokens[0][i])) {
@@ -205,7 +211,8 @@ enum CommandType isInternalCommand(char *tokens[]) {
                 }
             }
             int id = atoi(&tokens[0][1]);
-            if (id < 0 || id >= get_total_commands()) {
+            char* command = get_command_from_history(id);
+            if (command == NULL) {
                 return HISTORY_INVALID;
             }
             return HISTORY_RUN_SPECIFIC;
@@ -257,7 +264,12 @@ int main(int argc, char *argv[]) {
         }
 
         if (isInternal == HISTORY_INVALID) {
-            outputStr("Could not find command in history\n");
+            outputStr("Could not find command in history, please run a valid history command\n");
+            continue;
+        }
+
+        if (isInternal == HISTORY_RUN_PREVIOUS_ERROR) {
+            outputStr("No commands in history, can not run previous command\n");
             continue;
         }
 
@@ -329,6 +341,8 @@ int main(int argc, char *argv[]) {
                 break;
             case HISTORY_RUN_PREVIOUS:
                 // This should not be reached
+                break;
+            case HISTORY_RUN_PREVIOUS_ERROR:
                 break;
             case HISTORY_RUN_SPECIFIC:
                 // This should not be reached
