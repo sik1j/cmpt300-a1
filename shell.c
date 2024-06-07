@@ -391,14 +391,51 @@ int main(int argc, char *argv[])
             outputStr("too many arguments to 'pwd' call, expected 0 arguments\n");
             break;
         case CD:
+        static char* lastDir = NULL;
             if (tokens[1] == NULL) {
                 chdir("/home");
-                break;
-            }
-            if (chdir(tokens[1]) == -1)
-            {
-                outputStr(strerror(errno));
-                outputStr("\n");
+            } else if (strcmp(tokens[1], "-") == 0) {
+                // Change to the last directory
+                if (lastDir == NULL) {
+                    outputStr("No previous directory.\n");
+                    break;
+                }
+                if (chdir(lastDir) == -1) {
+                    outputStr(strerror(errno));
+                    outputStr("\n");
+                }
+            } else {
+                char* path = tokens[1];
+                char* newPath = NULL;
+                if (path[0] == '~') {
+                    // Replace ~ with the home directory
+                    char* home = "/home";
+                    if (home == NULL) {
+                        outputStr("Cannot find home directory.\n");
+                        break;
+                    }
+                    newPath = malloc(strlen(home) + strlen(path));
+                    if (newPath == NULL) {
+                        outputStr("Memory allocation failed.\n");
+                        break;
+                    }
+                    strcpy(newPath, home);
+                    strcat(newPath, path + 1);  // Skip the ~
+                    path = newPath;
+                }
+                // Save the current directory before changing it
+                char cwd[PATH_MAX];
+                if (getcwd(cwd, sizeof(cwd)) != NULL) {
+                    free(lastDir);
+                    lastDir = strdup(cwd);
+                }
+                if (chdir(path) == -1) {
+                    outputStr(strerror(errno));
+                    outputStr("\n");
+                }
+                if (newPath != NULL) {
+                    free(newPath);
+                }
             }
             break;
         case CD_ERROR:
