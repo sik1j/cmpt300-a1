@@ -391,6 +391,10 @@ int main(int argc, char *argv[])
             outputStr("too many arguments to 'pwd' call, expected 0 arguments\n");
             break;
         case CD:
+            if (tokens[1] == NULL) {
+                chdir("/home");
+                break;
+            }
             if (chdir(tokens[1]) == -1)
             {
                 outputStr(strerror(errno));
